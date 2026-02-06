@@ -13,6 +13,10 @@ services:
           property: connectionString
       - key: OPENAI_API_KEY
         sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
       - key: PYTHON_VERSION
         value: "3.11.11"
 

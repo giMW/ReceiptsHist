@@ -6,20 +6,22 @@
 <title>ReceiptsHist - Login</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;min-height:100vh;color:#1a1a2e;padding:20px}
-.card{background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.2);padding:40px;width:100%;max-width:420px}
+:root{--bg-gradient:linear-gradient(135deg,#667eea 0%,#764ba2 100%);--card:#fff;--text:#1a1a2e;--muted:#636e72;--border:#e0e0e0;--input-bg:#fafafa;--input-focus-bg:#fff}
+[data-theme="dark"]{--bg-gradient:linear-gradient(135deg,#1a1a2e 0%,#2d2d4a 100%);--card:#252542;--text:#e4e4e7;--muted:#a1a1aa;--border:#3f3f5c;--input-bg:#1e1e36;--input-focus-bg:#252542}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg-gradient);display:flex;align-items:center;justify-content:center;min-height:100vh;color:var(--text);padding:20px}
+.card{background:var(--card);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.2);padding:40px;width:100%;max-width:420px}
 .logo{text-align:center;margin-bottom:8px}
 .logo-icon{font-size:48px;margin-bottom:8px}
-h1{text-align:center;margin-bottom:8px;font-size:28px;color:#2d3436;font-weight:700}
-.subtitle{text-align:center;color:#636e72;margin-bottom:28px;font-size:14px}
-.tabs{display:flex;margin-bottom:24px;background:#f5f6fa;border-radius:10px;padding:4px}
-.tab{flex:1;text-align:center;padding:12px;cursor:pointer;font-weight:600;color:#636e72;border-radius:8px;transition:.2s}
+h1{text-align:center;margin-bottom:8px;font-size:28px;color:var(--text);font-weight:700}
+.subtitle{text-align:center;color:var(--muted);margin-bottom:28px;font-size:14px}
+.tabs{display:flex;margin-bottom:24px;background:var(--input-bg);border-radius:10px;padding:4px}
+.tab{flex:1;text-align:center;padding:12px;cursor:pointer;font-weight:600;color:var(--muted);border-radius:8px;transition:.2s}
 .tab.active{background:#6c5ce7;color:#fff;box-shadow:0 4px 12px rgba(108,92,231,.3)}
-.tab:hover:not(.active){background:#e8e9f3}
+.tab:hover:not(.active){background:var(--border)}
 .form-group{margin-bottom:18px;position:relative}
-label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#2d3436}
-input[type=email],input[type=password],input[type=text]{width:100%;padding:12px 14px;border:2px solid #e0e0e0;border-radius:10px;font-size:15px;transition:.2s;background:#fafafa}
-input:focus{outline:none;border-color:#6c5ce7;box-shadow:0 0 0 4px rgba(108,92,231,.1);background:#fff}
+label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--text)}
+input[type=email],input[type=password],input[type=text]{width:100%;padding:12px 14px;border:2px solid var(--border);border-radius:10px;font-size:15px;transition:.2s;background:var(--input-bg);color:var(--text)}
+input:focus{outline:none;border-color:#6c5ce7;box-shadow:0 0 0 4px rgba(108,92,231,.1);background:var(--input-focus-bg)}
 input.invalid{border-color:#e74c3c;background:#fef5f5}
 input.valid{border-color:#27ae60;background:#f5fef7}
 .password-wrapper{position:relative}
@@ -40,14 +42,14 @@ button[type=submit]:disabled{background:#b8b8b8;cursor:not-allowed;transform:non
 .hidden{display:none}
 
 /* Password strength indicator */
-.strength-meter{height:6px;background:#e0e0e0;border-radius:3px;margin-top:8px;overflow:hidden}
+.strength-meter{height:6px;background:var(--border);border-radius:3px;margin-top:8px;overflow:hidden}
 .strength-bar{height:100%;width:0;border-radius:3px;transition:width .3s,background .3s}
 .strength-bar.weak{width:25%;background:#e74c3c}
 .strength-bar.fair{width:50%;background:#f39c12}
 .strength-bar.good{width:75%;background:#3498db}
 .strength-bar.strong{width:100%;background:#27ae60}
-.strength-text{font-size:12px;margin-top:6px;color:#636e72}
-.requirements{margin-top:10px;font-size:12px;color:#636e72}
+.strength-text{font-size:12px;margin-top:6px;color:var(--muted)}
+.requirements{margin-top:10px;font-size:12px;color:var(--muted)}
 .requirement{display:flex;align-items:center;gap:6px;margin-bottom:4px}
 .requirement.met{color:#27ae60}
 .requirement.unmet{color:#a0a0a0}
@@ -61,17 +63,22 @@ button[type=submit]:disabled{background:#b8b8b8;cursor:not-allowed;transform:non
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* Divider */
-.divider{display:flex;align-items:center;margin:24px 0;color:#a0a0a0;font-size:13px}
-.divider::before,.divider::after{content:'';flex:1;height:1px;background:#e0e0e0}
+.divider{display:flex;align-items:center;margin:24px 0;color:var(--muted);font-size:13px}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
 .divider span{padding:0 16px}
 
 /* Google button */
-.google-btn{width:100%;padding:12px;background:#fff;color:#333;border:2px solid #e0e0e0;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px}
-.google-btn:hover{background:#f8f9fa;border-color:#d0d0d0}
+.google-btn{width:100%;padding:12px;background:var(--card);color:var(--text);border:2px solid var(--border);border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;text-decoration:none}
+.google-btn:hover{background:var(--input-bg);border-color:var(--muted)}
 .google-btn svg{width:20px;height:20px}
+
+/* Theme toggle */
+.theme-toggle{position:absolute;top:20px;right:20px;background:none;border:none;cursor:pointer;font-size:24px;opacity:0.7;transition:.2s}
+.theme-toggle:hover{opacity:1}
 </style>
 </head>
 <body>
+<button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">&#x1F319;</button>
 <div class="card">
   <div class="logo">
     <div class="logo-icon">&#x1F9FE;</div>
@@ -354,8 +361,29 @@ function saveEmail(email) {
   }
 }
 
+// Theme toggle
+function toggleTheme(){
+  const html=document.documentElement;
+  const current=html.getAttribute('data-theme');
+  const next=current==='dark'?'light':'dark';
+  html.setAttribute('data-theme',next);
+  localStorage.setItem('theme',next);
+  updateThemeIcon(next);
+}
+function updateThemeIcon(theme){
+  document.querySelector('.theme-toggle').textContent=theme==='dark'?'☀️':'🌙';
+}
+function initTheme(){
+  const saved=localStorage.getItem('theme');
+  const prefersDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+  const theme=saved||(prefersDark?'dark':'light');
+  if(theme==='dark')document.documentElement.setAttribute('data-theme','dark');
+  updateThemeIcon(theme);
+}
+
 // Check rate limit and load email on page load
 window.onload = function() {
+  initTheme();
   const remaining = isRateLimited();
   if (remaining > 0) {
     showRateLimitWarning(remaining);

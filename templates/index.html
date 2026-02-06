@@ -4,9 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ReceiptsHist</title>
+<!-- PWA -->
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#6c5ce7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Receipts">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
-:root{--primary:#6c5ce7;--primary-hover:#5b4cdb;--bg:#f0f2f5;--card:#fff;--text:#2d3436;--muted:#636e72;--border:#dfe6e9;--success:#00b894;--danger:#d63031;--warning:#fdcb6e;--radius:8px}
+:root{--primary:#6c5ce7;--primary-hover:#5b4cdb;--bg:#f0f2f5;--card:#fff;--text:#2d3436;--muted:#636e72;--border:#dfe6e9;--success:#00b894;--danger:#d63031;--warning:#fdcb6e;--radius:8px;--card-hover:#fafafa;--input-bg:#fff}
+[data-theme="dark"]{--bg:#1a1a2e;--card:#252542;--text:#e4e4e7;--muted:#a1a1aa;--border:#3f3f5c;--card-hover:#2d2d4a;--input-bg:#1e1e36}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
 /* NAV */
@@ -25,7 +33,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .form-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .form-group{display:flex;flex-direction:column;flex:1;min-width:140px}
 .form-group label{font-size:12px;font-weight:600;margin-bottom:4px;color:var(--muted)}
-input,select,textarea{padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:inherit}
+input,select,textarea{padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:inherit;background:var(--input-bg);color:var(--text)}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(108,92,231,.1)}
 textarea{resize:vertical;min-height:60px}
 .btn{padding:8px 18px;border:none;border-radius:var(--radius);font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
@@ -50,12 +58,12 @@ th{font-weight:600;color:var(--muted);font-size:12px;text-transform:uppercase;le
 /* RECEIPT CARD */
 .receipt-card{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden}
 .receipt-header{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;background:var(--card)}
-.receipt-header:hover{background:#fafafa}
+.receipt-header:hover{background:var(--card-hover)}
 .receipt-header .info{display:flex;gap:20px;flex-wrap:wrap;align-items:center}
 .receipt-header .store{font-weight:700;font-size:15px}
 .receipt-header .meta{color:var(--muted);font-size:13px}
 .receipt-header .total{font-weight:700;font-size:16px;color:var(--primary)}
-.receipt-body{padding:18px;border-top:1px solid var(--border);display:none;background:#fafafa}
+.receipt-body{padding:18px;border-top:1px solid var(--border);display:none;background:var(--card-hover)}
 .receipt-body.open{display:block}
 .receipt-actions{display:flex;gap:8px;margin-top:12px}
 /* CHART */
@@ -80,13 +88,28 @@ th{font-weight:600;color:var(--muted);font-size:12px;text-transform:uppercase;le
 /* EMPTY STATE */
 .empty-state{text-align:center;padding:40px;color:var(--muted)}
 .empty-state p{font-size:16px;margin-bottom:8px}
+/* THEME TOGGLE */
+.topbar-right{display:flex;align-items:center;gap:16px}
+.theme-toggle{background:none;border:none;cursor:pointer;font-size:20px;padding:4px;opacity:0.7;transition:.2s}
+.theme-toggle:hover{opacity:1}
+/* PHOTO MODAL */
+.photo-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:1000;align-items:center;justify-content:center;padding:20px}
+.photo-modal.open{display:flex}
+.photo-modal img{max-width:100%;max-height:90vh;border-radius:8px;box-shadow:0 4px 30px rgba(0,0,0,.3)}
+.photo-modal-close{position:absolute;top:20px;right:30px;font-size:36px;color:#fff;cursor:pointer;opacity:.7;transition:.2s}
+.photo-modal-close:hover{opacity:1}
+.btn-photo{background:none;border:1.5px solid var(--border);color:var(--muted);display:inline-flex;align-items:center;gap:4px}
+.btn-photo:hover{border-color:var(--primary);color:var(--primary)}
 </style>
 </head>
 <body>
 
 <div class="topbar">
   <h1>ReceiptsHist</h1>
-  <a href="/logout">Log out</a>
+  <div class="topbar-right">
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">&#x1F319;</button>
+    <a href="/logout">Log out</a>
+  </div>
 </div>
 
 <div class="tabs" id="tabBar">
@@ -266,6 +289,12 @@ th{font-weight:600;color:var(--muted);font-size:12px;text-transform:uppercase;le
 </div>
 
 </div><!-- .content -->
+
+<!-- Photo Modal -->
+<div class="photo-modal" id="photoModal" onclick="closePhotoModal()">
+  <span class="photo-modal-close">&times;</span>
+  <img id="photoModalImg" src="" alt="Receipt" onclick="event.stopPropagation()">
+</div>
 
 <script>
 /* ===== TABS ===== */
@@ -571,6 +600,7 @@ async function loadReceipts(){
         <table><thead><tr><th>Item</th><th>Normalized</th><th>Category</th><th>Qty</th><th>Unit</th><th>Price</th><th>Total</th><th>Rating</th></tr></thead>
         <tbody>${itemRows}</tbody></table>
         <div class="receipt-actions">
+          ${rec.photo_filename?`<button class="btn btn-sm btn-photo" onclick="openPhotoModal('${rec.photo_filename}')">&#128247; View Photo</button>`:''}
           <button class="btn btn-danger btn-sm" onclick="deleteReceipt(${rec.id},this)">Delete</button>
         </div>
       </div>
@@ -708,6 +738,44 @@ async function loadQueryHistory(){
     <div style="font-weight:600">${esc(l.question)}</div>
     <div style="font-size:12px;color:var(--muted)">${l.created_at||''} &mdash; ${esc(l.result_summary||'')}</div>
   </div>`).join('');
+}
+
+// Photo modal
+function openPhotoModal(filename){
+  document.getElementById('photoModalImg').src='/api/uploads/'+filename;
+  document.getElementById('photoModal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closePhotoModal(){
+  document.getElementById('photoModal').classList.remove('open');
+  document.body.style.overflow='';
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closePhotoModal();});
+
+// Theme toggle
+function toggleTheme(){
+  const html=document.documentElement;
+  const current=html.getAttribute('data-theme');
+  const next=current==='dark'?'light':'dark';
+  html.setAttribute('data-theme',next);
+  localStorage.setItem('theme',next);
+  updateThemeIcon(next);
+}
+function updateThemeIcon(theme){
+  document.querySelector('.theme-toggle').textContent=theme==='dark'?'☀️':'🌙';
+}
+function initTheme(){
+  const saved=localStorage.getItem('theme');
+  const prefersDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+  const theme=saved||(prefersDark?'dark':'light');
+  if(theme==='dark')document.documentElement.setAttribute('data-theme','dark');
+  updateThemeIcon(theme);
+}
+initTheme();
+
+// Register service worker for PWA
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/static/sw.js').catch(()=>{});
 }
 </script>
 </body>

@@ -1,10 +1,10 @@
 import os
 import uuid
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, send_from_directory
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from ai_scanner import scan_receipt
-from database import db, NormalizedItem
+from database import db, NormalizedItem, Receipt
 
 scanner_bp = Blueprint("scanner", __name__)
 
@@ -56,3 +56,17 @@ def scan():
                 item["normalized_name"] = existing[norm.lower()]
 
     return jsonify(result)
+
+
+@scanner_bp.route("/api/uploads/<filename>")
+@login_required
+def serve_upload(filename):
+    """Serve uploaded receipt images (only if user owns the receipt)."""
+    # Security: verify user owns a receipt with this photo
+    receipt = Receipt.query.filter_by(
+        user_id=current_user.id, photo_filename=filename
+    ).first()
+    if not receipt:
+        return jsonify({"error": "Not found"}), 404
+
+    return send_from_directory(current_app.config["UPLOAD_FOLDER"], filename)
