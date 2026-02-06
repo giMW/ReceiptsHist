@@ -75,7 +75,7 @@ def login():
         # Check rate limiting
         if is_rate_limited(ip):
             flash("Too many login attempts. Please wait a minute and try again.", "error")
-            return render_template("login.html")
+            return render_template("login.html", google_enabled=google_oauth_enabled)
 
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
@@ -95,7 +95,7 @@ def login():
         else:
             flash("Too many login attempts. Please wait a minute and try again.", "error")
 
-    return render_template("login.html")
+    return render_template("login.html", google_enabled=google_oauth_enabled)
 
 
 @app.route("/signup", methods=["POST"])
@@ -187,6 +187,7 @@ from routes.scanner import scanner_bp
 from routes.analytics import analytics_bp
 from routes.query import query_bp
 from routes.export import export_bp
+from routes.oauth import oauth_bp, init_oauth
 
 app.register_blueprint(receipts_bp)
 app.register_blueprint(items_bp)
@@ -194,6 +195,10 @@ app.register_blueprint(scanner_bp)
 app.register_blueprint(analytics_bp)
 app.register_blueprint(query_bp)
 app.register_blueprint(export_bp)
+app.register_blueprint(oauth_bp)
+
+# Initialize Google OAuth (if configured)
+google_oauth_enabled = init_oauth(app)
 
 
 # --- Init DB ---
