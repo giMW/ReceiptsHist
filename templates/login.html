@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReceiptsHist - Login</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;min-height:100vh;color:#1a1a2e;padding:20px}
+.card{background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.2);padding:40px;width:100%;max-width:420px}
+.logo{text-align:center;margin-bottom:8px}
+.logo-icon{font-size:48px;margin-bottom:8px}
+h1{text-align:center;margin-bottom:8px;font-size:28px;color:#2d3436;font-weight:700}
+.subtitle{text-align:center;color:#636e72;margin-bottom:28px;font-size:14px}
+.tabs{display:flex;margin-bottom:24px;background:#f5f6fa;border-radius:10px;padding:4px}
+.tab{flex:1;text-align:center;padding:12px;cursor:pointer;font-weight:600;color:#636e72;border-radius:8px;transition:.2s}
+.tab.active{background:#6c5ce7;color:#fff;box-shadow:0 4px 12px rgba(108,92,231,.3)}
+.tab:hover:not(.active){background:#e8e9f3}
+.form-group{margin-bottom:18px;position:relative}
+label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#2d3436}
+input[type=email],input[type=password],input[type=text]{width:100%;padding:12px 14px;border:2px solid #e0e0e0;border-radius:10px;font-size:15px;transition:.2s;background:#fafafa}
+input:focus{outline:none;border-color:#6c5ce7;box-shadow:0 0 0 4px rgba(108,92,231,.1);background:#fff}
+input.invalid{border-color:#e74c3c;background:#fef5f5}
+input.valid{border-color:#27ae60;background:#f5fef7}
+.password-wrapper{position:relative}
+.password-wrapper input{padding-right:44px}
+.toggle-password{position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:#a0a0a0;font-size:18px;user-select:none;transition:.2s}
+.toggle-password:hover{color:#6c5ce7}
+.remember-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;font-size:13px}
+.remember-row label{display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;margin-bottom:0}
+.remember-row input[type=checkbox]{width:18px;height:18px;accent-color:#6c5ce7;cursor:pointer}
+button[type=submit]{width:100%;padding:14px;background:linear-gradient(135deg,#6c5ce7 0%,#a29bfe 100%);color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;transition:.3s;box-shadow:0 4px 15px rgba(108,92,231,.3)}
+button[type=submit]:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(108,92,231,.4)}
+button[type=submit]:active{transform:translateY(0)}
+button[type=submit]:disabled{background:#b8b8b8;cursor:not-allowed;transform:none;box-shadow:none}
+.flash{padding:12px 16px;border-radius:10px;margin-bottom:18px;font-size:14px;display:flex;align-items:center;gap:10px}
+.flash.error{background:#ffeaea;color:#c0392b;border:1px solid #f5c6cb}
+.flash.success{background:#e8f8f5;color:#1e8449;border:1px solid #a9dfbf}
+.flash.warning{background:#fef9e7;color:#9a7b0a;border:1px solid #f9e79f}
+.hidden{display:none}
+
+/* Password strength indicator */
+.strength-meter{height:6px;background:#e0e0e0;border-radius:3px;margin-top:8px;overflow:hidden}
+.strength-bar{height:100%;width:0;border-radius:3px;transition:width .3s,background .3s}
+.strength-bar.weak{width:25%;background:#e74c3c}
+.strength-bar.fair{width:50%;background:#f39c12}
+.strength-bar.good{width:75%;background:#3498db}
+.strength-bar.strong{width:100%;background:#27ae60}
+.strength-text{font-size:12px;margin-top:6px;color:#636e72}
+.requirements{margin-top:10px;font-size:12px;color:#636e72}
+.requirement{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.requirement.met{color:#27ae60}
+.requirement.unmet{color:#a0a0a0}
+.requirement span{font-size:14px}
+
+/* Rate limit warning */
+.rate-limit-warning{background:#fff3cd;border:1px solid #ffc107;border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:13px;color:#856404;display:none}
+
+/* Loading spinner */
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid #fff;border-radius:50%;border-top-color:transparent;animation:spin .8s linear infinite;margin-right:8px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">&#x1F9FE;</div>
+  </div>
+  <h1>ReceiptsHist</h1>
+  <p class="subtitle">Track every item, know every price</p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  {% for category, msg in messages %}
+  <div class="flash {{ category }}">{{ msg }}</div>
+  {% endfor %}
+  {% endif %}
+  {% endwith %}
+
+  <div id="rateLimitWarning" class="rate-limit-warning">
+    Too many login attempts. Please wait <span id="countdown">30</span> seconds.
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="showForm('login')">Log In</div>
+    <div class="tab" onclick="showForm('signup')">Sign Up</div>
+  </div>
+
+  <form id="loginForm" action="/login" method="post" onsubmit="return handleSubmit(this, 'login')">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" name="email" required autocomplete="email" placeholder="you@example.com">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <div class="password-wrapper">
+        <input type="password" name="password" required autocomplete="current-password" placeholder="Enter your password">
+        <span class="toggle-password" onclick="togglePassword(this)">&#x1F441;</span>
+      </div>
+    </div>
+    <div class="remember-row">
+      <label>
+        <input type="checkbox" name="remember" value="1" id="rememberSession">
+        Stay logged in
+      </label>
+      <label>
+        <input type="checkbox" id="rememberEmail" checked>
+        Remember email
+      </label>
+    </div>
+    <button type="submit" id="loginBtn">Log In</button>
+  </form>
+
+  <form id="signupForm" action="/signup" method="post" class="hidden" onsubmit="return handleSubmit(this, 'signup')">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" name="email" required autocomplete="email" placeholder="you@example.com" oninput="validateEmail(this)">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <div class="password-wrapper">
+        <input type="password" name="password" id="signupPassword" required minlength="8" autocomplete="new-password" placeholder="Create a strong password" oninput="checkPasswordStrength(this.value)">
+        <span class="toggle-password" onclick="togglePassword(this)">&#x1F441;</span>
+      </div>
+      <div class="strength-meter"><div class="strength-bar" id="strengthBar"></div></div>
+      <div class="strength-text" id="strengthText"></div>
+      <div class="requirements">
+        <div class="requirement unmet" id="reqLength"><span>&#x2717;</span> At least 8 characters</div>
+        <div class="requirement unmet" id="reqUpper"><span>&#x2717;</span> One uppercase letter</div>
+        <div class="requirement unmet" id="reqLower"><span>&#x2717;</span> One lowercase letter</div>
+        <div class="requirement unmet" id="reqNumber"><span>&#x2717;</span> One number</div>
+        <div class="requirement unmet" id="reqSpecial"><span>&#x2717;</span> One special character (!@#$%^&*)</div>
+      </div>
+    </div>
+    <button type="submit" id="signupBtn">Create Account</button>
+  </form>
+</div>
+
+<script>
+// Rate limiting (client-side tracking)
+const RATE_LIMIT_KEY = 'loginAttempts';
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_TIME = 30000; // 30 seconds
+
+function getAttempts() {
+  const data = JSON.parse(localStorage.getItem(RATE_LIMIT_KEY) || '{"count":0,"timestamp":0}');
+  // Reset if lockout period passed
+  if (Date.now() - data.timestamp > LOCKOUT_TIME) {
+    data.count = 0;
+  }
+  return data;
+}
+
+function recordAttempt() {
+  const data = getAttempts();
+  data.count++;
+  data.timestamp = Date.now();
+  localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify(data));
+}
+
+function clearAttempts() {
+  localStorage.removeItem(RATE_LIMIT_KEY);
+}
+
+function isRateLimited() {
+  const data = getAttempts();
+  if (data.count >= MAX_ATTEMPTS && Date.now() - data.timestamp < LOCKOUT_TIME) {
+    return Math.ceil((LOCKOUT_TIME - (Date.now() - data.timestamp)) / 1000);
+  }
+  return 0;
+}
+
+function showRateLimitWarning(seconds) {
+  const warning = document.getElementById('rateLimitWarning');
+  const countdown = document.getElementById('countdown');
+  warning.style.display = 'block';
+  countdown.textContent = seconds;
+
+  const interval = setInterval(() => {
+    seconds--;
+    countdown.textContent = seconds;
+    if (seconds <= 0) {
+      clearInterval(interval);
+      warning.style.display = 'none';
+      clearAttempts();
+    }
+  }, 1000);
+}
+
+// Password visibility toggle
+function togglePassword(el) {
+  const input = el.previousElementSibling;
+  if (input.type === 'password') {
+    input.type = 'text';
+    el.innerHTML = '&#x1F576;'; // sunglasses
+  } else {
+    input.type = 'password';
+    el.innerHTML = '&#x1F441;'; // eye
+  }
+}
+
+// Password strength checker
+function checkPasswordStrength(password) {
+  const bar = document.getElementById('strengthBar');
+  const text = document.getElementById('strengthText');
+
+  // Check individual requirements
+  const checks = {
+    length: password.length >= 8,
+    upper: /[A-Z]/.test(password),
+    lower: /[a-z]/.test(password),
+    number: /[0-9]/.test(password),
+    special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+  };
+
+  // Update requirement indicators
+  updateRequirement('reqLength', checks.length);
+  updateRequirement('reqUpper', checks.upper);
+  updateRequirement('reqLower', checks.lower);
+  updateRequirement('reqNumber', checks.number);
+  updateRequirement('reqSpecial', checks.special);
+
+  // Calculate strength
+  const score = Object.values(checks).filter(Boolean).length;
+
+  bar.className = 'strength-bar';
+  if (password.length === 0) {
+    bar.style.width = '0';
+    text.textContent = '';
+  } else if (score <= 2) {
+    bar.classList.add('weak');
+    text.textContent = 'Weak - add more character types';
+  } else if (score === 3) {
+    bar.classList.add('fair');
+    text.textContent = 'Fair - getting better';
+  } else if (score === 4) {
+    bar.classList.add('good');
+    text.textContent = 'Good - almost there!';
+  } else {
+    bar.classList.add('strong');
+    text.textContent = 'Strong - excellent password!';
+  }
+
+  return score >= 4; // Require at least 4 criteria for signup
+}
+
+function updateRequirement(id, met) {
+  const el = document.getElementById(id);
+  if (met) {
+    el.classList.remove('unmet');
+    el.classList.add('met');
+    el.querySelector('span').innerHTML = '&#x2713;';
+  } else {
+    el.classList.remove('met');
+    el.classList.add('unmet');
+    el.querySelector('span').innerHTML = '&#x2717;';
+  }
+}
+
+// Email validation visual feedback
+function validateEmail(input) {
+  const valid = input.validity.valid && input.value.includes('@') && input.value.includes('.');
+  input.classList.toggle('valid', valid && input.value.length > 0);
+  input.classList.toggle('invalid', !valid && input.value.length > 0);
+}
+
+// Form submission handler
+function handleSubmit(form, type) {
+  if (type === 'login') {
+    const remaining = isRateLimited();
+    if (remaining > 0) {
+      showRateLimitWarning(remaining);
+      return false;
+    }
+    recordAttempt();
+
+    // Save email if remember email is checked
+    const email = form.querySelector('input[name="email"]').value;
+    saveEmail(email);
+  }
+
+  if (type === 'signup') {
+    const password = document.getElementById('signupPassword').value;
+    if (!checkPasswordStrength(password)) {
+      alert('Please create a stronger password that meets all requirements.');
+      return false;
+    }
+  }
+
+  // Show loading state
+  const btn = form.querySelector('button[type=submit]');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>' + (type === 'login' ? 'Logging in...' : 'Creating account...');
+
+  return true;
+}
+
+// Tab switching
+function showForm(which) {
+  document.getElementById('loginForm').classList.toggle('hidden', which !== 'login');
+  document.getElementById('signupForm').classList.toggle('hidden', which !== 'signup');
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (which === 'login' && i === 0) || (which === 'signup' && i === 1));
+  });
+}
+
+// Remember Email functionality
+const REMEMBER_EMAIL_KEY = 'rememberedEmail';
+const REMEMBER_EMAIL_PREF = 'rememberEmailPref';
+
+function loadRememberedEmail() {
+  const savedEmail = localStorage.getItem(REMEMBER_EMAIL_KEY);
+  const rememberPref = localStorage.getItem(REMEMBER_EMAIL_PREF) !== 'false';
+
+  document.getElementById('rememberEmail').checked = rememberPref;
+
+  if (savedEmail && rememberPref) {
+    const emailInput = document.querySelector('#loginForm input[name="email"]');
+    emailInput.value = savedEmail;
+    emailInput.classList.add('valid');
+  }
+}
+
+function saveEmail(email) {
+  if (document.getElementById('rememberEmail').checked) {
+    localStorage.setItem(REMEMBER_EMAIL_KEY, email);
+    localStorage.setItem(REMEMBER_EMAIL_PREF, 'true');
+  } else {
+    localStorage.removeItem(REMEMBER_EMAIL_KEY);
+    localStorage.setItem(REMEMBER_EMAIL_PREF, 'false');
+  }
+}
+
+// Check rate limit and load email on page load
+window.onload = function() {
+  const remaining = isRateLimited();
+  if (remaining > 0) {
+    showRateLimitWarning(remaining);
+  }
+  loadRememberedEmail();
+};
+</script>
+</body>
+</html>

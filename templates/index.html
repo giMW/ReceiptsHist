@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReceiptsHist</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+:root{--primary:#6c5ce7;--primary-hover:#5b4cdb;--bg:#f0f2f5;--card:#fff;--text:#2d3436;--muted:#636e72;--border:#dfe6e9;--success:#00b894;--danger:#d63031;--warning:#fdcb6e;--radius:8px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+/* NAV */
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100}
+.topbar h1{font-size:20px;color:var(--primary)}
+.topbar a{color:var(--muted);text-decoration:none;font-size:13px}
+.tabs{display:flex;background:var(--card);border-bottom:1px solid var(--border);overflow-x:auto;position:sticky;top:56px;z-index:99}
+.tabs button{flex:none;padding:12px 20px;border:none;background:none;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button.active{color:var(--primary);border-bottom-color:var(--primary)}
+/* CONTENT */
+.content{max-width:1100px;margin:0 auto;padding:20px}
+.panel{display:none}
+.panel.active{display:block}
+/* FORMS */
+.card{background:var(--card);border-radius:var(--radius);box-shadow:0 1px 8px rgba(0,0,0,.04);padding:24px;margin-bottom:16px}
+.form-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.form-group{display:flex;flex-direction:column;flex:1;min-width:140px}
+.form-group label{font-size:12px;font-weight:600;margin-bottom:4px;color:var(--muted)}
+input,select,textarea{padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:inherit}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(108,92,231,.1)}
+textarea{resize:vertical;min-height:60px}
+.btn{padding:8px 18px;border:none;border-radius:var(--radius);font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-hover)}
+.btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{background:#c0392b}
+.btn-sm{padding:5px 12px;font-size:12px}
+.btn-outline{background:none;border:1.5px solid var(--border);color:var(--text)}.btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+/* TABLE */
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);font-size:13px}
+th{font-weight:600;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+/* ITEMS TABLE */
+.items-table input,.items-table select{padding:4px 6px;font-size:13px;width:100%;min-width:60px}
+.items-table .col-name{min-width:150px}
+.items-table .col-sm{width:70px}
+.items-table .col-md{width:90px}
+/* STARS */
+.stars{display:inline-flex;gap:2px;cursor:pointer}
+.stars span{font-size:18px;color:var(--border);transition:.1s}
+.stars span.filled{color:#f39c12}
+.stars span:hover,.stars span:hover~span{color:var(--border)}
+/* RECEIPT CARD */
+.receipt-card{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden}
+.receipt-header{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;background:var(--card)}
+.receipt-header:hover{background:#fafafa}
+.receipt-header .info{display:flex;gap:20px;flex-wrap:wrap;align-items:center}
+.receipt-header .store{font-weight:700;font-size:15px}
+.receipt-header .meta{color:var(--muted);font-size:13px}
+.receipt-header .total{font-weight:700;font-size:16px;color:var(--primary)}
+.receipt-body{padding:18px;border-top:1px solid var(--border);display:none;background:#fafafa}
+.receipt-body.open{display:block}
+.receipt-actions{display:flex;gap:8px;margin-top:12px}
+/* CHART */
+.chart-container{position:relative;height:300px;margin:16px 0}
+/* FILTER BAR */
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:flex-end}
+.filter-bar .form-group{min-width:120px;flex:none}
+/* SPINNER */
+.spinner{display:inline-block;width:20px;height:20px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-overlay{display:flex;align-items:center;gap:10px;padding:20px;color:var(--muted)}
+/* BADGE */
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;background:#dfe6e9;color:var(--muted)}
+.badge-primary{background:rgba(108,92,231,.12);color:var(--primary)}
+/* RESPONSIVE */
+@media(max-width:600px){
+  .form-row{flex-direction:column}
+  .tabs button{padding:10px 14px;font-size:12px}
+  .receipt-header .info{gap:10px}
+  .filter-bar{flex-direction:column}
+}
+/* EMPTY STATE */
+.empty-state{text-align:center;padding:40px;color:var(--muted)}
+.empty-state p{font-size:16px;margin-bottom:8px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>ReceiptsHist</h1>
+  <a href="/logout">Log out</a>
+</div>
+
+<div class="tabs" id="tabBar">
+  <button class="active" data-tab="scan">Scan</button>
+  <button data-tab="add">Add</button>
+  <button data-tab="receipts">Receipts</button>
+  <button data-tab="dashboard">Dashboard</button>
+  <button data-tab="prices">Price Tracker</button>
+  <button data-tab="ask">Ask AI</button>
+</div>
+
+<div class="content">
+
+<!-- ============ SCAN TAB ============ -->
+<div class="panel active" id="panel-scan">
+  <div class="card">
+    <h2 style="margin-bottom:12px">Scan a Receipt</h2>
+    <p style="color:var(--muted);margin-bottom:16px">Upload a photo or PDF and AI will extract all items.</p>
+    <input type="file" id="scanFile" accept="image/*,.pdf" style="margin-bottom:12px">
+    <br>
+    <button class="btn btn-primary" onclick="doScan()">Scan Receipt</button>
+    <div id="scanLoading" class="loading-overlay" style="display:none"><div class="spinner"></div>Analyzing receipt...</div>
+    <div id="scanError" style="color:var(--danger);margin-top:10px;display:none"></div>
+  </div>
+  <div id="scanResults" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 id="scanResultsTitle">Review Extracted Data</h3>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="saveAllScanReceipts()">Save All</button>
+        <button class="btn btn-outline" onclick="document.getElementById('scanResults').style.display='none'">Cancel</button>
+      </div>
+    </div>
+    <div id="scanReceiptCards"></div>
+  </div>
+</div>
+
+<!-- ============ ADD TAB ============ -->
+<div class="panel" id="panel-add">
+  <div class="card">
+    <h2 style="margin-bottom:12px">Add Receipt Manually</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Store Name</label><input id="add_store" type="text"></div>
+      <div class="form-group"><label>Category</label><select id="add_category"></select></div>
+      <div class="form-group"><label>Date</label><input id="add_date" type="date"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Address</label><input id="add_address" type="text"></div>
+      <div class="form-group"><label>Payment</label>
+        <select id="add_payment"><option value="">--</option><option>Cash</option><option>Credit</option><option>Debit</option><option>Other</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Subtotal</label><input id="add_subtotal" type="number" step="0.01"></div>
+      <div class="form-group"><label>Tax</label><input id="add_tax" type="number" step="0.01"></div>
+      <div class="form-group"><label>Tip</label><input id="add_tip" type="number" step="0.01"></div>
+      <div class="form-group"><label>Total</label><input id="add_total" type="number" step="0.01"></div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px"><label>Notes</label><textarea id="add_notes" rows="2"></textarea></div>
+    <h4 style="margin:8px 0">Line Items</h4>
+    <div style="overflow-x:auto">
+      <table class="items-table" id="addItemsTable">
+        <thead><tr>
+          <th class="col-name">Item Name</th><th class="col-name">Normalized</th><th class="col-md">Category</th>
+          <th class="col-sm">Qty</th><th class="col-sm">Unit</th><th class="col-sm">Price</th><th class="col-sm">Total</th>
+          <th class="col-sm">Rating</th><th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="addManualItemRow()" style="margin-top:8px">+ Add Item</button>
+    <div style="margin-top:16px">
+      <button class="btn btn-primary" onclick="saveManualReceipt()">Save Receipt</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ RECEIPTS TAB ============ -->
+<div class="panel" id="panel-receipts">
+  <div class="card">
+    <div class="filter-bar">
+      <div class="form-group"><label>From</label><input id="rf_from" type="date"></div>
+      <div class="form-group"><label>To</label><input id="rf_to" type="date"></div>
+      <div class="form-group"><label>Category</label><select id="rf_category"><option value="">All</option></select></div>
+      <div class="form-group"><label>Store</label><input id="rf_store" type="text" placeholder="Search..."></div>
+      <button class="btn btn-primary btn-sm" onclick="loadReceipts()" style="align-self:flex-end">Filter</button>
+      <button class="btn btn-outline btn-sm" onclick="window.location='/api/export/csv'" style="align-self:flex-end">Export CSV</button>
+    </div>
+  </div>
+  <div id="receiptsList"></div>
+</div>
+
+<!-- ============ DASHBOARD TAB ============ -->
+<div class="panel" id="panel-dashboard">
+  <div class="filter-bar card">
+    <div class="form-group"><label>From</label><input id="df_from" type="date"></div>
+    <div class="form-group"><label>To</label><input id="df_to" type="date"></div>
+    <button class="btn btn-primary btn-sm" onclick="loadDashboard()" style="align-self:flex-end">Update</button>
+  </div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">
+    <div class="card" style="flex:1;min-width:200px;text-align:center">
+      <div style="color:var(--muted);font-size:12px">Total Spent</div>
+      <div id="dashTotal" style="font-size:28px;font-weight:700;color:var(--primary)">$0</div>
+    </div>
+    <div class="card" style="flex:1;min-width:200px;text-align:center">
+      <div style="color:var(--muted);font-size:12px">Receipts</div>
+      <div id="dashCount" style="font-size:28px;font-weight:700">0</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap">
+    <div class="card" style="flex:1;min-width:300px">
+      <h3>Spending by Category</h3>
+      <div class="chart-container"><canvas id="categoryChart"></canvas></div>
+    </div>
+    <div class="card" style="flex:1;min-width:300px">
+      <h3>Monthly Spending</h3>
+      <div class="chart-container"><canvas id="monthlyChart"></canvas></div>
+    </div>
+  </div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:16px">
+    <div class="card" style="flex:1;min-width:300px">
+      <h3>Top Items</h3>
+      <table id="topItemsTable"><thead><tr><th>Item</th><th>Purchases</th><th>Total</th><th>Avg Price</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="card" style="flex:1;min-width:300px">
+      <h3>Top Stores</h3>
+      <table id="topStoresTable"><thead><tr><th>Store</th><th>Visits</th><th>Total</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PRICE TRACKER TAB ============ -->
+<div class="panel" id="panel-prices">
+  <div class="card">
+    <h2 style="margin-bottom:12px">Price Tracker</h2>
+    <div class="form-row">
+      <div class="form-group" style="flex:2"><label>Item Name</label><input id="pt_item" type="text" placeholder="e.g. Eggs, Milk, Bread..." list="ptSuggestions"><datalist id="ptSuggestions"></datalist></div>
+      <button class="btn btn-primary" onclick="loadPriceHistory()" style="align-self:flex-end">Search</button>
+    </div>
+  </div>
+  <div id="priceResults" style="display:none">
+    <div class="card">
+      <h3 id="priceTitle">Price History</h3>
+      <div class="chart-container"><canvas id="priceChart"></canvas></div>
+    </div>
+    <div class="card">
+      <table id="priceTable"><thead><tr><th>Date</th><th>Store</th><th>Price</th><th>Qty</th><th>Unit</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ASK AI TAB ============ -->
+<div class="panel" id="panel-ask">
+  <div class="card">
+    <h2 style="margin-bottom:12px">Ask AI</h2>
+    <p style="color:var(--muted);margin-bottom:12px">Ask questions about your receipts in plain English.</p>
+    <div class="form-row">
+      <div class="form-group" style="flex:3"><input id="askInput" type="text" placeholder="How much did I spend on groceries last month?"></div>
+      <button class="btn btn-primary" onclick="doAsk()" style="align-self:flex-end">Ask</button>
+    </div>
+    <div id="askLoading" class="loading-overlay" style="display:none"><div class="spinner"></div>Thinking...</div>
+    <div id="askError" style="color:var(--danger);margin-top:10px;display:none"></div>
+  </div>
+  <div id="askResult" style="display:none">
+    <div class="card">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Generated SQL:</div>
+      <pre id="askSQL" style="background:#f8f9fa;padding:10px;border-radius:var(--radius);font-size:12px;overflow-x:auto;margin-bottom:12px"></pre>
+      <div id="askSummary" style="margin-bottom:12px;font-weight:600"></div>
+      <div style="overflow-x:auto">
+        <table id="askTable"><thead></thead><tbody></tbody></table>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3 style="margin-bottom:8px">Query History</h3>
+    <div id="askHistory"></div>
+  </div>
+</div>
+
+</div><!-- .content -->
+
+<script>
+/* ===== TABS ===== */
+const tabBtns=document.querySelectorAll('#tabBar button');
+const panels=document.querySelectorAll('.panel');
+tabBtns.forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    tabBtns.forEach(b=>b.classList.remove('active'));
+    panels.forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab==='receipts')loadReceipts();
+    if(btn.dataset.tab==='dashboard')loadDashboard();
+    if(btn.dataset.tab==='ask')loadQueryHistory();
+    if(btn.dataset.tab==='prices')loadItemSuggestions();
+  });
+});
+
+/* ===== HELPERS ===== */
+async function api(url,opts={}){
+  opts.headers=opts.headers||{};
+  if(opts.body&&typeof opts.body==='string')opts.headers['Content-Type']='application/json';
+  const r=await fetch(url,opts);
+  if(r.status===401){window.location='/login';return null;}
+  return r;
+}
+
+const ITEM_CATEGORIES=["Dairy","Produce","Meat","Bakery","Beverages","Snacks","Frozen","Household","Fuel","Entree","Appetizer","Dessert","Drink","Side","Clothing","Electronics","Other"];
+const UNITS=["each","lb","oz","gal","kg","L"];
+
+let storeCategories=[];
+fetch('/api/categories/store').then(r=>r.json()).then(d=>{
+  storeCategories=d;
+  populateStoreCats();
+});
+
+function populateStoreCats(){
+  ['sr_category','add_category','rf_category'].forEach(id=>{
+    const sel=document.getElementById(id);
+    if(!sel)return;
+    const hasAll=id==='rf_category';
+    sel.innerHTML=hasAll?'<option value="">All</option>':'<option value="">--</option>';
+    storeCategories.forEach(c=>{sel.innerHTML+=`<option>${c}</option>`;});
+  });
+}
+
+function makeItemRow(item={}){
+  const catOpts=ITEM_CATEGORIES.map(c=>`<option ${item.category===c?'selected':''}>${c}</option>`).join('');
+  const unitOpts=UNITS.map(u=>`<option ${item.unit===u?'selected':''}>${u}</option>`).join('');
+  const rating=item.rating||0;
+  const stars=[1,2,3,4,5].map(i=>`<span class="${i<=rating?'filled':''}" data-v="${i}">&#9733;</span>`).join('');
+  return `<tr>
+    <td><input type="text" class="li-name" value="${esc(item.item_name||'')}"></td>
+    <td><input type="text" class="li-norm" value="${esc(item.normalized_name||'')}"></td>
+    <td><select class="li-cat"><option value="">--</option>${catOpts}</select></td>
+    <td><input type="number" class="li-qty" value="${item.quantity||1}" step="0.01" min="0"></td>
+    <td><select class="li-unit"><option value="">--</option>${unitOpts}</select></td>
+    <td><input type="number" class="li-price" value="${item.unit_price||''}" step="0.01"></td>
+    <td><input type="number" class="li-total" value="${item.line_total||''}" step="0.01"></td>
+    <td><span class="stars" data-rating="${rating}">${stars}</span></td>
+    <td><button class="btn btn-danger btn-sm" onclick="this.closest('tr').remove()">X</button></td>
+  </tr>`;
+}
+
+function esc(s){return s?String(s).replace(/"/g,'&quot;').replace(/</g,'&lt;'):''}
+
+function readItemRows(tableId){
+  const rows=document.querySelectorAll(`#${tableId} tbody tr`);
+  return Array.from(rows).map(tr=>({
+    item_name:tr.querySelector('.li-name').value,
+    normalized_name:tr.querySelector('.li-norm').value||null,
+    category:tr.querySelector('.li-cat').value||null,
+    quantity:parseFloat(tr.querySelector('.li-qty').value)||1,
+    unit:tr.querySelector('.li-unit').value||'each',
+    unit_price:parseFloat(tr.querySelector('.li-price').value)||null,
+    line_total:parseFloat(tr.querySelector('.li-total').value)||0,
+    rating:parseInt(tr.querySelector('.stars').dataset.rating)||null,
+  })).filter(i=>i.item_name);
+}
+
+/* Star click handler */
+document.addEventListener('click',e=>{
+  if(e.target.closest('.stars span')){
+    const star=e.target.closest('.stars span');
+    const v=parseInt(star.dataset.v);
+    const container=star.closest('.stars');
+    container.dataset.rating=v;
+    container.querySelectorAll('span').forEach(s=>{
+      s.classList.toggle('filled',parseInt(s.dataset.v)<=v);
+    });
+  }
+});
+
+/* ===== SCAN ===== */
+let scanReceipts=[];  // array of receipt data from scan
+
+async function doScan(){
+  const fileInput=document.getElementById('scanFile');
+  if(!fileInput.files.length){alert('Select a file first');return;}
+  document.getElementById('scanLoading').style.display='flex';
+  document.getElementById('scanError').style.display='none';
+  document.getElementById('scanResults').style.display='none';
+  const fd=new FormData();
+  fd.append('file',fileInput.files[0]);
+  try{
+    const r=await api('/api/scan',{method:'POST',body:fd});
+    const d=await r.json();
+    if(d.error){document.getElementById('scanError').textContent=d.error;document.getElementById('scanError').style.display='block';return;}
+    // d is an array of receipts
+    scanReceipts=Array.isArray(d)?d:[d];
+    renderScanReceipts();
+  }catch(e){document.getElementById('scanError').textContent=e.message;document.getElementById('scanError').style.display='block';}
+  finally{document.getElementById('scanLoading').style.display='none';}
+}
+
+function makeScanReceiptCard(rec,idx){
+  const storeCatOpts=storeCategories.map(c=>`<option ${rec.store_category===c?'selected':''}>${c}</option>`).join('');
+  const payOpts=['Cash','Credit','Debit','Other'].map(c=>`<option ${rec.payment_method===c?'selected':''}>${c}</option>`).join('');
+  const itemRows=(rec.items||[]).map(item=>makeItemRow(item)).join('');
+  return `<div class="card scan-receipt-card" data-scan-idx="${idx}" id="scanCard${idx}">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h4>Receipt ${idx+1}: ${esc(rec.store_name||'Unknown Store')} &mdash; $${(rec.total||0).toFixed(2)}</h4>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span class="badge badge-primary scan-status" id="scanStatus${idx}">Unsaved</span>
+        <button class="btn btn-primary btn-sm" onclick="saveScanReceipt(${idx})">Save</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Store Name</label><input type="text" class="sr-store" value="${esc(rec.store_name||'')}"></div>
+      <div class="form-group"><label>Category</label><select class="sr-category"><option value="">--</option>${storeCatOpts}</select></div>
+      <div class="form-group"><label>Date</label><input type="date" class="sr-date" value="${rec.receipt_date||''}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Address</label><input type="text" class="sr-address" value="${esc(rec.store_address||'')}"></div>
+      <div class="form-group"><label>Payment</label><select class="sr-payment"><option value="">--</option>${payOpts}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Subtotal</label><input type="number" step="0.01" class="sr-subtotal" value="${rec.subtotal||''}"></div>
+      <div class="form-group"><label>Tax</label><input type="number" step="0.01" class="sr-tax" value="${rec.tax||''}"></div>
+      <div class="form-group"><label>Tip</label><input type="number" step="0.01" class="sr-tip" value="${rec.tip||''}"></div>
+      <div class="form-group"><label>Total</label><input type="number" step="0.01" class="sr-total" value="${rec.total||''}"></div>
+    </div>
+    <h4 style="margin:8px 0">Line Items (${(rec.items||[]).length})</h4>
+    <div style="overflow-x:auto">
+      <table class="items-table" id="scanItemsTable${idx}">
+        <thead><tr>
+          <th class="col-name">Item Name</th><th class="col-name">Normalized</th><th class="col-md">Category</th>
+          <th class="col-sm">Qty</th><th class="col-sm">Unit</th><th class="col-sm">Price</th><th class="col-sm">Total</th>
+          <th class="col-sm">Rating</th><th></th>
+        </tr></thead>
+        <tbody>${itemRows}</tbody>
+      </table>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="document.querySelector('#scanItemsTable${idx} tbody').insertAdjacentHTML('beforeend',makeItemRow())" style="margin-top:8px">+ Add Item</button>
+  </div>`;
+}
+
+function renderScanReceipts(){
+  const container=document.getElementById('scanReceiptCards');
+  const title=document.getElementById('scanResultsTitle');
+  title.textContent=scanReceipts.length===1?'Review Extracted Receipt':`Review ${scanReceipts.length} Extracted Receipts`;
+  container.innerHTML=scanReceipts.map((rec,i)=>makeScanReceiptCard(rec,i)).join('');
+  document.getElementById('scanResults').style.display='block';
+}
+
+async function saveScanReceipt(idx){
+  const card=document.getElementById('scanCard'+idx);
+  const rec=scanReceipts[idx];
+  const body={
+    store_name:card.querySelector('.sr-store').value,
+    store_address:card.querySelector('.sr-address').value,
+    store_category:card.querySelector('.sr-category').value,
+    receipt_date:card.querySelector('.sr-date').value,
+    subtotal:parseFloat(card.querySelector('.sr-subtotal').value)||null,
+    tax:parseFloat(card.querySelector('.sr-tax').value)||null,
+    tip:parseFloat(card.querySelector('.sr-tip').value)||null,
+    total:parseFloat(card.querySelector('.sr-total').value)||0,
+    payment_method:card.querySelector('.sr-payment').value||null,
+    photo_filename:rec.photo_filename||'',
+    items:readItemRows('scanItemsTable'+idx),
+  };
+  if(!body.total){alert('Total is required');return 'fail';}
+  const r=await api('/api/receipts',{method:'POST',body:JSON.stringify(body)});
+  const store=card.querySelector('.sr-store').value||'Unknown Store';
+  const total=card.querySelector('.sr-total').value||'0';
+  if(r.ok){
+    card.dataset.saved='1';
+    card.innerHTML=`<div style="display:flex;align-items:center;gap:12px;padding:4px 0">
+      <span style="color:var(--success);font-size:22px">&#10003;</span>
+      <span><strong>Receipt ${idx+1}: ${esc(store)}</strong> &mdash; $${parseFloat(total).toFixed(2)}</span>
+      <span class="badge" style="background:rgba(0,184,148,.15);color:#00b894">Saved</span>
+    </div>`;
+    return 'saved';
+  }else{
+    const d=await r.json();
+    if(r.status===409){
+      card.dataset.saved='1';
+      card.innerHTML=`<div style="display:flex;align-items:center;gap:12px;padding:4px 0">
+        <span style="color:var(--warning);font-size:22px">&#8252;</span>
+        <span><strong>Receipt ${idx+1}: ${esc(store)}</strong> &mdash; $${parseFloat(total).toFixed(2)}</span>
+        <span class="badge" style="background:rgba(253,203,110,.2);color:#6c5100">Duplicate - Skipped</span>
+      </div>`;
+      return 'duplicate';
+    }
+    alert(d.error||'Save failed');
+    return 'fail';
+  }
+}
+
+async function saveAllScanReceipts(){
+  let saved=0,dupes=0;
+  for(let i=0;i<scanReceipts.length;i++){
+    const card=document.getElementById('scanCard'+i);
+    if(card&&card.dataset.saved==='1')continue;
+    const result=await saveScanReceipt(i);
+    if(result==='saved')saved++;
+    else if(result==='duplicate')dupes++;
+  }
+  let msg=[];
+  if(saved>0)msg.push(saved+' receipt'+(saved>1?'s':'')+' saved');
+  if(dupes>0)msg.push(dupes+' duplicate'+(dupes>1?'s':'')+' skipped');
+  if(msg.length)alert(msg.join(', ')+'!');
+  // Reset scan UI for next input
+  setTimeout(()=>{
+    document.getElementById('scanResults').style.display='none';
+    document.getElementById('scanReceiptCards').innerHTML='';
+    document.getElementById('scanFile').value='';
+    scanReceipts=[];
+  },800);
+}
+
+/* ===== MANUAL ADD ===== */
+document.getElementById('add_date').value=new Date().toISOString().split('T')[0];
+addManualItemRow();
+function addManualItemRow(){document.querySelector('#addItemsTable tbody').insertAdjacentHTML('beforeend',makeItemRow());}
+
+async function saveManualReceipt(){
+  const body={
+    store_name:document.getElementById('add_store').value,
+    store_address:document.getElementById('add_address').value,
+    store_category:document.getElementById('add_category').value,
+    receipt_date:document.getElementById('add_date').value,
+    subtotal:parseFloat(document.getElementById('add_subtotal').value)||null,
+    tax:parseFloat(document.getElementById('add_tax').value)||null,
+    tip:parseFloat(document.getElementById('add_tip').value)||null,
+    total:parseFloat(document.getElementById('add_total').value)||0,
+    payment_method:document.getElementById('add_payment').value||null,
+    notes:document.getElementById('add_notes').value||null,
+    items:readItemRows('addItemsTable'),
+  };
+  if(!body.total){alert('Total is required');return;}
+  const r=await api('/api/receipts',{method:'POST',body:JSON.stringify(body)});
+  if(r.ok){
+    alert('Receipt saved!');
+    document.getElementById('add_store').value='';
+    document.getElementById('add_address').value='';
+    document.getElementById('add_subtotal').value='';
+    document.getElementById('add_tax').value='';
+    document.getElementById('add_tip').value='';
+    document.getElementById('add_total').value='';
+    document.getElementById('add_notes').value='';
+    document.querySelector('#addItemsTable tbody').innerHTML='';
+    addManualItemRow();
+  }else{const d=await r.json();alert(d.error||'Save failed');}
+}
+
+/* ===== RECEIPTS LIST ===== */
+async function loadReceipts(){
+  const params=new URLSearchParams();
+  const f=document.getElementById('rf_from').value;
+  const t=document.getElementById('rf_to').value;
+  const c=document.getElementById('rf_category').value;
+  const s=document.getElementById('rf_store').value;
+  if(f)params.set('date_from',f);
+  if(t)params.set('date_to',t);
+  if(c)params.set('store_category',c);
+  if(s)params.set('store_name',s);
+  const r=await api('/api/receipts?'+params);
+  const receipts=await r.json();
+  const container=document.getElementById('receiptsList');
+  if(!receipts.length){container.innerHTML='<div class="empty-state card"><p>No receipts found</p></div>';return;}
+  container.innerHTML=receipts.map(rec=>{
+    const items=rec.items||[];
+    const itemRows=items.map(i=>`<tr>
+      <td>${esc(i.item_name)}</td><td>${esc(i.normalized_name||'')}</td><td>${esc(i.category||'')}</td>
+      <td>${i.quantity||''}</td><td>${i.unit||''}</td><td>${i.unit_price!=null?'$'+i.unit_price.toFixed(2):''}</td>
+      <td>$${(i.line_total||0).toFixed(2)}</td>
+      <td>${i.rating?'&#9733;'.repeat(i.rating):''}</td>
+    </tr>`).join('');
+    return `<div class="receipt-card">
+      <div class="receipt-header" onclick="this.nextElementSibling.classList.toggle('open')">
+        <div class="info">
+          <span class="store">${esc(rec.store_name||'Unknown Store')}</span>
+          <span class="meta">${rec.receipt_date||''}</span>
+          <span class="badge badge-primary">${esc(rec.store_category||'')}</span>
+          <span class="meta">${items.length} item${items.length!==1?'s':''}</span>
+        </div>
+        <span class="total">$${(rec.total||0).toFixed(2)}</span>
+      </div>
+      <div class="receipt-body">
+        ${rec.store_address?`<p style="color:var(--muted);margin-bottom:8px">${esc(rec.store_address)}</p>`:''}
+        ${rec.notes?`<p style="margin-bottom:8px"><em>${esc(rec.notes)}</em></p>`:''}
+        <table><thead><tr><th>Item</th><th>Normalized</th><th>Category</th><th>Qty</th><th>Unit</th><th>Price</th><th>Total</th><th>Rating</th></tr></thead>
+        <tbody>${itemRows}</tbody></table>
+        <div class="receipt-actions">
+          <button class="btn btn-danger btn-sm" onclick="deleteReceipt(${rec.id},this)">Delete</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function deleteReceipt(id,btn){
+  if(!confirm('Delete this receipt and all its items?'))return;
+  const r=await api('/api/receipts/'+id,{method:'DELETE'});
+  if(r.ok)btn.closest('.receipt-card').remove();
+  else alert('Delete failed');
+}
+
+/* ===== DASHBOARD ===== */
+let categoryChartInstance=null, monthlyChartInstance=null;
+
+async function loadDashboard(){
+  const params=new URLSearchParams();
+  const f=document.getElementById('df_from').value;
+  const t=document.getElementById('df_to').value;
+  if(f)params.set('date_from',f);
+  if(t)params.set('date_to',t);
+
+  const [sumR,tiR,tsR]=await Promise.all([
+    api('/api/analytics/summary?'+params),
+    api('/api/analytics/top-items'),
+    api('/api/analytics/top-stores'),
+  ]);
+  const sum=await sumR.json();
+  const topItems=await tiR.json();
+  const topStores=await tsR.json();
+
+  document.getElementById('dashTotal').textContent='$'+sum.grand_total.toFixed(2);
+  document.getElementById('dashCount').textContent=sum.receipt_count;
+
+  // Category pie
+  if(categoryChartInstance)categoryChartInstance.destroy();
+  const catLabels=sum.by_category.map(c=>c.category);
+  const catData=sum.by_category.map(c=>c.total);
+  const colors=['#6c5ce7','#00b894','#fdcb6e','#e17055','#0984e3','#d63031','#00cec9','#636e72','#fab1a0','#81ecec'];
+  categoryChartInstance=new Chart(document.getElementById('categoryChart'),{
+    type:'doughnut',
+    data:{labels:catLabels,datasets:[{data:catData,backgroundColor:colors.slice(0,catLabels.length)}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'}}}
+  });
+
+  // Monthly bar
+  if(monthlyChartInstance)monthlyChartInstance.destroy();
+  monthlyChartInstance=new Chart(document.getElementById('monthlyChart'),{
+    type:'bar',
+    data:{labels:sum.monthly.map(m=>m.month),datasets:[{label:'Spending',data:sum.monthly.map(m=>m.total),backgroundColor:'#6c5ce7'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+  });
+
+  // Top items
+  const tiBody=document.querySelector('#topItemsTable tbody');
+  tiBody.innerHTML=topItems.map(i=>`<tr><td>${esc(i.name)}</td><td>${i.purchase_count}</td><td>$${i.total_spent.toFixed(2)}</td><td>$${i.avg_price.toFixed(2)}</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--muted)">No data</td></tr>';
+
+  // Top stores
+  const tsBody=document.querySelector('#topStoresTable tbody');
+  tsBody.innerHTML=topStores.map(s=>`<tr><td>${esc(s.store_name)}</td><td>${s.visit_count}</td><td>$${s.total_spent.toFixed(2)}</td></tr>`).join('')||'<tr><td colspan="3" style="color:var(--muted)">No data</td></tr>';
+}
+
+/* ===== PRICE TRACKER ===== */
+let priceChartInstance=null;
+
+async function loadItemSuggestions(){
+  const r=await api('/api/analytics/top-items?limit=50');
+  const items=await r.json();
+  const dl=document.getElementById('ptSuggestions');
+  dl.innerHTML=items.map(i=>`<option value="${esc(i.name)}">`).join('');
+}
+
+async function loadPriceHistory(){
+  const item=document.getElementById('pt_item').value.trim();
+  if(!item){alert('Enter an item name');return;}
+  const r=await api('/api/analytics/price-history?item='+encodeURIComponent(item));
+  const d=await r.json();
+  if(!d.data||!d.data.length){
+    document.getElementById('priceResults').style.display='none';
+    alert('No price history found for "'+item+'"');
+    return;
+  }
+  document.getElementById('priceResults').style.display='block';
+  document.getElementById('priceTitle').textContent='Price History: '+item;
+
+  // Chart
+  if(priceChartInstance)priceChartInstance.destroy();
+  priceChartInstance=new Chart(document.getElementById('priceChart'),{
+    type:'line',
+    data:{
+      labels:d.data.map(p=>p.date),
+      datasets:[{label:'Unit Price',data:d.data.map(p=>p.unit_price),borderColor:'#6c5ce7',backgroundColor:'rgba(108,92,231,.1)',fill:true,tension:.3}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:false}}}
+  });
+
+  // Table
+  const tbody=document.querySelector('#priceTable tbody');
+  tbody.innerHTML=d.data.map(p=>`<tr><td>${p.date}</td><td>${esc(p.store||'')}</td><td>$${(p.unit_price||0).toFixed(2)}</td><td>${p.quantity||''}</td><td>${p.unit||''}</td></tr>`).join('');
+}
+
+/* ===== ASK AI ===== */
+document.getElementById('askInput').addEventListener('keydown',e=>{if(e.key==='Enter')doAsk();});
+
+async function doAsk(){
+  const q=document.getElementById('askInput').value.trim();
+  if(!q)return;
+  document.getElementById('askLoading').style.display='flex';
+  document.getElementById('askError').style.display='none';
+  document.getElementById('askResult').style.display='none';
+  try{
+    const r=await api('/api/query',{method:'POST',body:JSON.stringify({question:q})});
+    const d=await r.json();
+    if(d.error){document.getElementById('askError').textContent=d.error;document.getElementById('askError').style.display='block';return;}
+    document.getElementById('askSQL').textContent=d.sql||'';
+    document.getElementById('askSummary').textContent=d.summary||'';
+    const thead=document.querySelector('#askTable thead');
+    const tbody=document.querySelector('#askTable tbody');
+    thead.innerHTML='<tr>'+(d.columns||[]).map(c=>`<th>${esc(c)}</th>`).join('')+'</tr>';
+    tbody.innerHTML=(d.rows||[]).map(row=>'<tr>'+(d.columns||[]).map(c=>`<td>${row[c]!=null?esc(String(row[c])):''}</td>`).join('')+'</tr>').join('')||'<tr><td colspan="99" style="color:var(--muted)">No results</td></tr>';
+    document.getElementById('askResult').style.display='block';
+    loadQueryHistory();
+  }catch(e){document.getElementById('askError').textContent=e.message;document.getElementById('askError').style.display='block';}
+  finally{document.getElementById('askLoading').style.display='none';}
+}
+
+async function loadQueryHistory(){
+  const r=await api('/api/query/history');
+  const logs=await r.json();
+  const container=document.getElementById('askHistory');
+  if(!logs.length){container.innerHTML='<p style="color:var(--muted)">No queries yet</p>';return;}
+  container.innerHTML=logs.map(l=>`<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+    <div style="font-weight:600">${esc(l.question)}</div>
+    <div style="font-size:12px;color:var(--muted)">${l.created_at||''} &mdash; ${esc(l.result_summary||'')}</div>
+  </div>`).join('');
+}
+</script>
+</body>
+</html>
