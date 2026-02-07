@@ -102,6 +102,7 @@ def create_receipt():
         payment_method=data.get("payment_method"),
         currency=data.get("currency", "USD"),
         photo_filename=data.get("photo_filename"),
+        photo_data=data.get("photo_data"),
         notes=data.get("notes"),
     )
     db.session.add(receipt)

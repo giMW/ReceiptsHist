@@ -205,6 +205,13 @@ google_oauth_enabled = init_oauth(app)
 
 with app.app_context():
     db.create_all()
+    # Run migrations for new columns
+    from sqlalchemy import text
+    try:
+        db.session.execute(text("ALTER TABLE receipts ADD COLUMN photo_data TEXT"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()  # Column already exists
 
 
 if __name__ == "__main__":

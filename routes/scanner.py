@@ -1,6 +1,7 @@
 import os
 import uuid
-from flask import Blueprint, request, jsonify, current_app, send_from_directory
+import base64
+from flask import Blueprint, request, jsonify, current_app, send_from_directory, Response
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from ai_scanner import scan_receipt
@@ -43,6 +44,28 @@ def scan():
     if isinstance(result, dict) and "error" in result:
         return jsonify(result), 500
 
+    # Read and encode image for database storage
+    photo_data = None
+    try:
+        # For PDFs, the scanner creates a JPG - try to find it
+        if ext == "pdf":
+            jpg_path = filepath.rsplit(".", 1)[0] + "_page0.jpg"
+            if os.path.exists(jpg_path):
+                with open(jpg_path, "rb") as f:
+                    photo_data = base64.b64encode(f.read()).decode("utf-8")
+                os.remove(jpg_path)  # Clean up
+        else:
+            with open(filepath, "rb") as f:
+                photo_data = base64.b64encode(f.read()).decode("utf-8")
+    except Exception:
+        pass  # Photo storage is optional
+
+    # Clean up uploaded file (we have it in base64 now)
+    try:
+        os.remove(filepath)
+    except Exception:
+        pass
+
     # Match normalized names to existing NormalizedItem records
     existing = {
         ni.name.lower(): ni.name
@@ -50,6 +73,7 @@ def scan():
     }
     for receipt in result:
         receipt["photo_filename"] = filename
+        receipt["photo_data"] = photo_data
         for item in receipt.get("items", []):
             norm = item.get("normalized_name", "")
             if norm and norm.lower() in existing:
@@ -69,4 +93,18 @@ def serve_upload(filename):
     if not receipt:
         return jsonify({"error": "Not found"}), 404
 
-    return send_from_directory(current_app.config["UPLOAD_FOLDER"], filename)
+    # Try local file first (development)
+    filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
+    if os.path.exists(filepath):
+        return send_from_directory(current_app.config["UPLOAD_FOLDER"], filename)
+
+    # Fall back to database storage (production/Render)
+    if receipt.photo_data:
+        image_data = base64.b64decode(receipt.photo_data)
+        # Determine mime type from filename
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "jpg"
+        mime_types = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "gif": "image/gif", "webp": "image/webp"}
+        mime = mime_types.get(ext, "image/jpeg")
+        return Response(image_data, mimetype=mime)
+
+    return jsonify({"error": "Image not found"}), 404

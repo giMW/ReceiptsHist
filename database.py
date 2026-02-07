@@ -52,6 +52,7 @@ class Receipt(db.Model):
     payment_method = db.Column(db.String(50))
     currency = db.Column(db.String(10), default="USD")
     photo_filename = db.Column(db.String(255))
+    photo_data = db.Column(db.Text)  # Base64 encoded image for cloud storage
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
