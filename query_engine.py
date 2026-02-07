@@ -197,12 +197,25 @@ def run_query(user_id, question):
         }
 
     except Exception as e:
+        error_msg = str(e)
+        # Make common database errors more user-friendly
+        if "pattern" in error_msg.lower() or "did not match" in error_msg.lower():
+            friendly_error = "The query had a date or format error. Try rephrasing (e.g., 'last month' instead of specific dates)."
+        elif "no such column" in error_msg.lower():
+            friendly_error = "The query tried to use an invalid column. Try a simpler question."
+        elif "syntax error" in error_msg.lower():
+            friendly_error = "The generated SQL had a syntax error. Try rephrasing your question."
+        elif "operator does not exist" in error_msg.lower():
+            friendly_error = "Type mismatch in query. Try rephrasing your question."
+        else:
+            friendly_error = f"Query failed: {error_msg}"
+
         log = QueryLog(
             user_id=user_id,
             question=question,
             generated_sql=generated_sql,
-            result_summary=f"ERROR: {str(e)}",
+            result_summary=f"ERROR: {error_msg}",
         )
         db.session.add(log)
         db.session.commit()
-        return {"error": str(e), "sql": generated_sql}
+        return {"error": friendly_error, "sql": generated_sql}
