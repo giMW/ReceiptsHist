@@ -474,6 +474,7 @@ async function saveScanReceipt(idx){
     total:parseFloat(card.querySelector('.sr-total').value)||0,
     payment_method:card.querySelector('.sr-payment').value||null,
     photo_filename:rec.photo_filename||'',
+    photo_data:rec.photo_data||null,
     items:readItemRows('scanItemsTable'+idx),
   };
   if(!body.total){alert('Total is required');return 'fail';}
