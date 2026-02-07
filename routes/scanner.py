@@ -40,38 +40,25 @@ def scan():
     except Exception as e:
         return jsonify({"error": f"Scan failed: {str(e)}"}), 500
 
-    # scan_receipt returns a list of receipts, or a dict with "error"
-    if isinstance(result, dict) and "error" in result:
-        return jsonify(result), 500
-
-    # Read and encode image for database storage
-    photo_data = None
-    try:
-        # For PDFs, the scanner creates a JPG - try to find it
-        if ext == "pdf":
-            jpg_path = filepath.rsplit(".", 1)[0] + "_page0.jpg"
-            if os.path.exists(jpg_path):
-                with open(jpg_path, "rb") as f:
-                    photo_data = base64.b64encode(f.read()).decode("utf-8")
-                os.remove(jpg_path)  # Clean up
-        else:
-            with open(filepath, "rb") as f:
-                photo_data = base64.b64encode(f.read()).decode("utf-8")
-    except Exception:
-        pass  # Photo storage is optional
-
-    # Clean up uploaded file (we have it in base64 now)
+    # Clean up uploaded file
     try:
         os.remove(filepath)
     except Exception:
         pass
+
+    # scan_receipt returns {"receipts": [...], "image_b64": "..."} or {"error": "..."}
+    if isinstance(result, dict) and "error" in result:
+        return jsonify(result), 500
+
+    receipts = result.get("receipts", [])
+    photo_data = result.get("image_b64")
 
     # Match normalized names to existing NormalizedItem records
     existing = {
         ni.name.lower(): ni.name
         for ni in NormalizedItem.query.filter_by(user_id=current_user.id).all()
     }
-    for receipt in result:
+    for receipt in receipts:
         receipt["photo_filename"] = filename
         receipt["photo_data"] = photo_data
         for item in receipt.get("items", []):
@@ -79,7 +66,7 @@ def scan():
             if norm and norm.lower() in existing:
                 item["normalized_name"] = existing[norm.lower()]
 
-    return jsonify(result)
+    return jsonify(receipts)
 
 
 @scanner_bp.route("/api/uploads/<filename>")

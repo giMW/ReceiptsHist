@@ -307,4 +307,6 @@ def scan_receipt(image_path):
             pass
     gc.collect()
 
-    return [_validate_and_clean(receipt) for receipt in data]
+    # Return results with the image data we already have
+    validated = [_validate_and_clean(receipt) for receipt in data]
+    return {"receipts": validated, "image_b64": b64}
