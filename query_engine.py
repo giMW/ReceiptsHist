@@ -4,7 +4,14 @@ import json
 from datetime import date
 from openai import OpenAI
 from sqlalchemy import text
+from flask import current_app
 from database import db, QueryLog
+
+
+def _is_postgresql():
+    """Check if we're using PostgreSQL."""
+    db_url = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    return "postgresql" in db_url.lower() or "postgres" in db_url.lower()
 
 SCHEMA_DESCRIPTION = """
 Database tables:
@@ -51,7 +58,7 @@ Relationships:
 - When joining line_items with receipts, join on line_items.receipt_id = receipts.id
 """
 
-QUERY_PROMPT = """You are a SQL query generator for a receipt tracking application.
+QUERY_PROMPT_SQLITE = """You are a SQL query generator for a receipt tracking application.
 Given the user's question and the database schema, generate a SELECT SQL query.
 
 {schema}
@@ -71,7 +78,6 @@ RULES:
    - Start of last month: DATE('now', 'start of month', '-1 month')
    - Extract year: strftime('%Y', receipt_date)
    - Extract month: strftime('%m', receipt_date)
-   - DO NOT use PostgreSQL functions like DATE_TRUNC, INTERVAL, or CURRENT_DATE
 6. LIMIT results to 500 rows max.
 7. Return ONLY the SQL query, no explanation, no markdown fences.
 
@@ -79,7 +85,42 @@ Example date queries:
 - Last 30 days: receipt_date >= DATE('now', '-30 days')
 - Last month: receipt_date >= DATE('now', 'start of month', '-1 month') AND receipt_date < DATE('now', 'start of month')
 - This year: receipt_date >= DATE('now', 'start of year')
-- Last year: strftime('%Y', receipt_date) = strftime('%Y', DATE('now', '-1 year'))
+
+Today's date: {today}
+
+User question: {question}
+
+SQL query:"""
+
+QUERY_PROMPT_POSTGRES = """You are a SQL query generator for a receipt tracking application.
+Given the user's question and the database schema, generate a SELECT SQL query.
+
+{schema}
+
+IMPORTANT: This database uses PostgreSQL. Use PostgreSQL date functions only.
+
+RULES:
+1. Generate ONLY a SELECT query - no INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, or TRUNCATE.
+2. ALWAYS filter receipts by user_id = :user_id (use the :user_id parameter placeholder).
+3. When querying line_items, JOIN with receipts and filter receipts.user_id = :user_id.
+4. Use normalized_name for item matching when possible (it's the cleaned version of item_name).
+5. For date calculations, use PostgreSQL functions:
+   - Current date: CURRENT_DATE
+   - Subtract days: CURRENT_DATE - INTERVAL '30 days'
+   - Subtract months: CURRENT_DATE - INTERVAL '1 month'
+   - Start of current month: DATE_TRUNC('month', CURRENT_DATE)
+   - Start of last month: DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month')
+   - End of last month: DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '1 day'
+   - Extract year: EXTRACT(YEAR FROM receipt_date)
+   - Extract month: EXTRACT(MONTH FROM receipt_date)
+6. LIMIT results to 500 rows max.
+7. Return ONLY the SQL query, no explanation, no markdown fences.
+
+Example date queries:
+- Last 30 days: receipt_date >= CURRENT_DATE - INTERVAL '30 days'
+- Last month: receipt_date >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AND receipt_date < DATE_TRUNC('month', CURRENT_DATE)
+- This year: receipt_date >= DATE_TRUNC('year', CURRENT_DATE)
+- This month: receipt_date >= DATE_TRUNC('month', CURRENT_DATE)
 
 Today's date: {today}
 
@@ -112,12 +153,15 @@ def run_query(user_id, question):
     """Generate and execute a SQL query from a natural language question."""
     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
+    # Use the correct prompt for the database type
+    prompt_template = QUERY_PROMPT_POSTGRES if _is_postgresql() else QUERY_PROMPT_SQLITE
+
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
             {
                 "role": "user",
-                "content": QUERY_PROMPT.format(
+                "content": prompt_template.format(
                     schema=SCHEMA_DESCRIPTION,
                     question=question,
                     today=date.today().isoformat(),
@@ -197,25 +241,32 @@ def run_query(user_id, question):
         }
 
     except Exception as e:
+        # Rollback the failed transaction first
+        db.session.rollback()
+
         error_msg = str(e)
         # Make common database errors more user-friendly
         if "pattern" in error_msg.lower() or "did not match" in error_msg.lower():
             friendly_error = "The query had a date or format error. Try rephrasing (e.g., 'last month' instead of specific dates)."
-        elif "no such column" in error_msg.lower():
-            friendly_error = "The query tried to use an invalid column. Try a simpler question."
+        elif "no such column" in error_msg.lower() or "does not exist" in error_msg.lower():
+            friendly_error = "The query tried to use an invalid column or function. Try a simpler question."
         elif "syntax error" in error_msg.lower():
             friendly_error = "The generated SQL had a syntax error. Try rephrasing your question."
         elif "operator does not exist" in error_msg.lower():
             friendly_error = "Type mismatch in query. Try rephrasing your question."
         else:
-            friendly_error = f"Query failed: {error_msg}"
+            friendly_error = f"Query failed: {error_msg[:100]}"
 
-        log = QueryLog(
-            user_id=user_id,
-            question=question,
-            generated_sql=generated_sql,
-            result_summary=f"ERROR: {error_msg}",
-        )
-        db.session.add(log)
-        db.session.commit()
+        try:
+            log = QueryLog(
+                user_id=user_id,
+                question=question,
+                generated_sql=generated_sql,
+                result_summary=f"ERROR: {error_msg[:200]}",
+            )
+            db.session.add(log)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()  # Ignore logging errors
+
         return {"error": friendly_error, "sql": generated_sql}
