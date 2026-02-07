@@ -2,6 +2,7 @@ import os
 import json
 import base64
 import re
+import gc
 from openai import OpenAI
 
 SCAN_PROMPT = """Analyze this image carefully for ALL receipts. The image may contain MULTIPLE receipts.
@@ -62,39 +63,46 @@ VALID_ITEM_CATEGORIES = {
 VALID_UNITS = {"each", "lb", "oz", "gal", "kg", "L"}
 
 
-def _resize_image_if_needed(image_path, max_size_mb=15, max_dimension=2048):
-    """Resize/compress image if it's too large for the API."""
+def _resize_image_if_needed(image_path, max_size_mb=5, max_dimension=1280):
+    """Resize/compress image if it's too large for the API. Optimized for low memory."""
     from PIL import Image
     import io
-
-    # Check file size
-    file_size = os.path.getsize(image_path)
-    max_bytes = max_size_mb * 1024 * 1024
 
     img = Image.open(image_path)
 
     # Convert to RGB if necessary (handles RGBA, P mode, etc.)
     if img.mode in ("RGBA", "P", "LA"):
-        img = img.convert("RGB")
+        rgb_img = img.convert("RGB")
+        img.close()
+        img = rgb_img
 
     # Resize if dimensions are too large
     if img.width > max_dimension or img.height > max_dimension:
         ratio = min(max_dimension / img.width, max_dimension / img.height)
         new_size = (int(img.width * ratio), int(img.height * ratio))
-        img = img.resize(new_size, Image.LANCZOS)
+        resized = img.resize(new_size, Image.LANCZOS)
+        img.close()
+        img = resized
 
-    # Save to buffer and check size
+    # Save to buffer with moderate quality
     buffer = io.BytesIO()
-    quality = 90
-    img.save(buffer, format="JPEG", quality=quality)
+    max_bytes = max_size_mb * 1024 * 1024
+    quality = 75  # Start lower to save memory
+
+    img.save(buffer, format="JPEG", quality=quality, optimize=True)
 
     # Reduce quality if still too large
     while buffer.tell() > max_bytes and quality > 30:
         buffer = io.BytesIO()
         quality -= 10
-        img.save(buffer, format="JPEG", quality=quality)
+        img.save(buffer, format="JPEG", quality=quality, optimize=True)
 
-    return buffer.getvalue()
+    img.close()
+    result = buffer.getvalue()
+    buffer.close()
+    gc.collect()  # Force garbage collection
+
+    return result
 
 
 def _encode_image(image_path):
@@ -152,33 +160,53 @@ def _validate_and_clean(data):
     return data
 
 
-def convert_pdf_to_images(pdf_path):
-    """Convert each page of a PDF to a PNG image, return list of paths."""
+def convert_pdf_to_images(pdf_path, max_pages=1):
+    """Convert PDF to images. Only first page by default to save memory."""
     import fitz  # PyMuPDF
 
     doc = fitz.open(pdf_path)
     image_paths = []
+
+    # Only process first page(s) to save memory
     for i, page in enumerate(doc):
-        pix = page.get_pixmap(dpi=200)
-        img_path = pdf_path.rsplit(".", 1)[0] + f"_page{i}.png"
-        pix.save(img_path)
+        if i >= max_pages:
+            break
+        # Use lower DPI (100) to reduce memory usage
+        pix = page.get_pixmap(dpi=100)
+        img_path = pdf_path.rsplit(".", 1)[0] + f"_page{i}.jpg"
+        # Save as JPEG instead of PNG (smaller)
+        pix.pil_save(img_path, format="JPEG", quality=80)
+        pix = None  # Release memory
         image_paths.append(img_path)
+
     doc.close()
+    gc.collect()
     return image_paths
 
 
 def scan_receipt(image_path):
     """Scan a receipt image and return structured data."""
     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    temp_files = []  # Track temp files to clean up
 
     # Handle PDFs by converting first page to image
     if image_path.lower().endswith(".pdf"):
         pages = convert_pdf_to_images(image_path)
         if not pages:
             return {"error": "Could not convert PDF"}
+        temp_files.extend(pages)
         image_path = pages[0]  # Use first page
 
-    b64, mime = _encode_image(image_path)
+    try:
+        b64, mime = _encode_image(image_path)
+    except Exception as e:
+        # Clean up temp files on error
+        for f in temp_files:
+            try:
+                os.remove(f)
+            except:
+                pass
+        return {"error": f"Failed to process image: {str(e)}"}
 
     messages = [
         {
@@ -252,12 +280,31 @@ def scan_receipt(image_path):
         try:
             data = _extract_json(fixed)
         except json.JSONDecodeError:
+            for f in temp_files:
+                try:
+                    os.remove(f)
+                except:
+                    pass
             return {"error": "Failed to parse AI response", "raw": raw}
 
     # Normalize to a list of receipts
     if isinstance(data, dict):
         data = [data]
     elif not isinstance(data, list):
+        # Clean up temp files
+        for f in temp_files:
+            try:
+                os.remove(f)
+            except:
+                pass
         return {"error": "Unexpected AI response format"}
+
+    # Clean up temp files
+    for f in temp_files:
+        try:
+            os.remove(f)
+        except:
+            pass
+    gc.collect()
 
     return [_validate_and_clean(receipt) for receipt in data]
